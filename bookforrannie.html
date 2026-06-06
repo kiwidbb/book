@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: #1a1612;
+      font-family: Georgia, 'Times New Roman', serif;
+      gap: 1.5rem;
+      padding: 2rem 1rem;
+    }
+
+    .book-wrap {
+      perspective: 1500px;
+      width: 600px;
+      height: 380px;
+      position: relative;
+    }
+
+    .book {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      transform-style: preserve-3d;
+    }
+
+    .book-base {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      border-radius: 2px 10px 10px 2px;
+      box-shadow: 12px 12px 40px rgba(0,0,0,0.5);
+    }
+
+    .page-left, .page-right {
+      width: 50%;
+      height: 100%;
+      padding: 2.2rem 1.8rem;
+      display: flex;
+      flex-direction: column;
+      gap: .6rem;
+    }
+
+    .page-left {
+      background: #fdf6e3;
+      border-radius: 2px 0 0 2px;
+      border-right: 1px solid #e0d5b8;
+    }
+
+    .page-right {
+      background: #fdf6e3;
+      border-radius: 0 10px 10px 0;
+    }
+
+  /* this part lowk js ai*/
+    .flipping-page {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      width: 50%;
+      height: 100%;
+      transform-origin: left center;
+      transform-style: preserve-3d;
+      cursor: pointer;
+      transition: transform 0.7s cubic-bezier(0.645, 0.045, 0.355, 1);
+    }
+
+    /* When JS adds this class, the page rotates 180° = flip! */
+    .flipping-page.flipped {
+      transform: rotateY(-180deg);
+    }
+
+    /* ── Front and back faces of the flipping page ── */
+    .page-front, .page-back {
+      position: absolute;
+      inset: 0;
+      backface-visibility: hidden; /* hide when facing away */
+      -webkit-backface-visibility: hidden;
+      padding: 2.2rem 1.8rem;
+      display: flex;
+      flex-direction: column;
+      gap: .6rem;
+    }
+
+    .page-front {
+      background: #fdf6e3;
+      border-radius: 0 10px 10px 0;
+      box-shadow: 3px 0 10px rgba(0,0,0,0.12);
+    }
+
+    .page-back {
+      background: #fdf6e3;
+      border-radius: 2px 0 0 2px;
+      /* Rotate 180° so it faces the other way and appears on the back */
+      transform: rotateY(180deg);
+      border-left: 1px solid #e0d5b8;
+    }
+
+
+    .spine {
+      position: absolute;
+      left: 50%;
+      top: 0;
+      width: 10px;
+      height: 100%;
+      transform: translateX(-50%);
+      background: linear-gradient(to right, #c8b89a, #a89878, #c8b89a);
+      z-index: 10;
+      pointer-events: none;
+    }
+
+   
+    .chapter-label {
+      font-size: 10px;
+      font-weight: bold;
+      color: #c8a878;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+    }
+
+    .divider {
+      width: 36px;
+      height: 1px;
+      background: #d4c8a8;
+      margin: 2px 0;
+    }
+
+    .page-title {
+      font-size: 14px;
+      font-weight: bold;
+      color: #5a3e28;
+    }
+
+    .page-text {
+      font-size: 13px;
+      color: #4a3828;
+      line-height: 1.75;
+      flex: 1;
+    }
+
+    .page-text em {
+      font-style: italic;
+      color: #7a5a3a;
+    }
+
+    .page-num {
+      font-size: 11px;
+      color: #a09070;
+      text-align: center;
+      margin-top: auto;
+      padding-top: .5rem;
+    }
+
+    
+    .hint {
+      font-size: 13px;
+      color: #a09070;
+      font-family: Arial, sans-serif;
+    }
+
+    .controls {
+      display: flex;
+      gap: 12px;
+    }
+
+    .controls button {
+      font-family: Arial, sans-serif;
+      font-size: 13px;
+      padding: 8px 22px;
+      border-radius: 6px;
+      border: 1px solid #6b5a3a;
+      background: #2e2620;
+      color: #d4c8a8;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .controls button:hover { background: #3e3020; }
+    .controls button:disabled { opacity: 0.35; cursor: default; }
+  </style>
+</head>
+<body>
+
+  <div class="book-wrap">
+    <div class="book">
+
+      
+      <div class="book-base">
+        <div class="page-left">
+          <div class="chapter-label" id="left-chapter"></div>
+          <div class="divider"></div>
+          <div class="page-title"  id="left-title"></div>
+          <div class="page-text"   id="left-text"></div>
+          <div class="page-num"    id="left-num"></div>
+        </div>
+        <div class="page-right">
+          <div class="chapter-label" id="right-chapter"></div>
+          <div class="divider"></div>
+          <div class="page-title"  id="right-title"></div>
+          <div class="page-text"   id="right-text"></div>
+          <div class="page-num"    id="right-num"></div>
+        </div>
+      </div>
+
+      
+      <div class="spine"></div>
+
+      
+      <div class="flipping-page" id="flip-page" onclick="flipForward()">
+        <div class="page-front">
+          <div class="chapter-label" id="front-chapter"></div>
+          <div class="divider"></div>
+          <div class="page-title"  id="front-title"></div>
+          <div class="page-text"   id="front-text"></div>
+          <div class="page-num"    id="front-num"></div>
+        </div>
+        <div class="page-back">
+          <div class="chapter-label" id="back-chapter"></div>
+          <div class="divider"></div>
+          <div class="page-title"  id="back-title"></div>
+          <div class="page-text"   id="back-text"></div>
+          <div class="page-num"    id="back-num"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <p class="hint">Click the right page to turn it</p>
+
+  <div class="controls">
+    <button id="prev-btn" onclick="prevPage()" disabled>← Previous</button>
+    <button id="next-btn" onclick="flipForward()">Next →</button>
+  </div>
+
+  <script>
+    // write your stuff here, for extra pages just add more chapter, title and text
+    // on first spread, left page is empty but after that both pages will be filled, so make sure to pay attention to the chapter and titles
+    // if you dont want the top to say chapter or title, keep it empty (like this "")
+    // go back to style if you want a different font or whatever
+    const pages = [
+      {
+        chapter: "Prologue",
+        title:   "Prelude // #lockedin",
+        text:    "Happy 8 months my love :3. I made this little book about us, and all the things I love about you. Thank you for being a part of the happiest 8 months of my life, and hopefully many many more.<br/><br/><br/><em>I hope you like it :3</em>"
+      },
+      {
+        chapter: "Chapter I",
+        title:   "Love // What brings us closer",
+        text:    "I don't even know where to start so I'll just start with my favorite thing to say to you: I love you. I love you so so much, and I hope I'll get to keep loving you until I die. Or even after death. Everything about you is just so special, you're not like anyone I've ever met and I think thats why we clicked. On paper it really doesn't make sense, we literally have nothing in common."
+      },
+      {
+        chapter: "",
+        title:   "",
+        text:    "but I think that's what makes us more special. The bond we have, the LOVE we have for eachother. The way you talk, the way you understand me and everything else you do, just comes from your love for me. It's so pure and thats why we're still #lockedin fr. <br/><em>So, thank you for always loving me no matter what.</em>"
+      },
+      {
+        chapter: "Chapter II",
+        title:   "Trust // What holds us together",
+        text:    "One of the main things that brought us closer is how much we yapped. Like now that I look back on it, we literally just yapped about anything?? It was insane. I remember in college I would stay back just to hear more tea so I could come tell you later. I just loved talking to you that much. Still, this is all your doing."
+      },
+      {
+        chapter: "",
+        title:   "",
+        text:    "Everytime I told you about something, you always listened. And you didn't just sit there and read, you were fully ENGAGED. That's something no one has ever done for me, and it just made me wanna talk to you even more. So I just ended up spending all night talking to you and sleeping in class (worth it tho). But if you never gave me so much time, I don't think I would've opened up. <br/><em>So, thank you for always trusting me.</em>"
+      },
+      {
+        chapter: "Chapter III",
+        title:   "Connection // What we share",
+        text:    "You know what one of my fav memories of us is? When we forwarded Kay's bfs messages and made fun of him. It was so crazy that we both thought the exact same thing at the same time. That just shows that we're CONNECTED like that. I'm not sure how or why we have such a strong connection, but I'm so grateful that we do. I'm so comfortable with saying anything to you, because I just KNOW you'd agree with me. "
+      },
+      {
+        chapter: "",
+        title: "",
+        text: "I just feel such a strong connection to you, everytime we talk it makes me so so happy and I feel loved and seen. You know me so well and understand me PERFECTLYYY I swear. Sometimes I wonder if you did some kind of black magic on me, because we used to just be friends and now I can't go a single minute without thinking about you. You're just so perfect in every single way. <br/><em>So, thank you for understanding me so well.</em> "
+      },
+      {
+        chapter: "Chapter IV",
+        title: "Soul // What completes us",
+        text: "As the title says, you are literally my soulmate. In the last chapter I talked about how connected we are and I think this is because we're soulmates. It's like you're half of me, a part of soul my entirely. Without you I just feel incomplete like there's just <em>something</em> missing. YOU are that something, my better half. YOU complete me. YOU fill in the gap in my soul."
+      },
+      {
+        chapter: "",
+        title: "",
+        text: "One of my fav nicknames that you call me is روحي. MY SOUL??? YES PLEASEEEE. I hope your soul yearns for mine the way I do, and I hope you also feel the same way. Even when you're not here, I always feel a part of you in me, like an angel on my shoulder. I guess you're just that important to me. <br/><em>So, thank you for always being a part of me.</em>"
+      },
+      {
+        chapter: "Chapter V",
+        title: "Warmth // How you make me feel",
+        text: "Whenever I say 'I wanna go home', I don't mean I wanna go back to my house, I mean I wanna go back to YOU. You make me feel so warm and so loved, you're basically what home is to me. The way you always reassure me, tell me I'm doing good and I'll be fine- EVERYTHING is so comforting, just like home."
+      },
+      {
+        chapter:"",
+        title: "",
+        text: "You're like the first rays of sunshine after it rains or the first bite of freshly made pasta, you're just soft and warm in every way. Like when you smile in photos?!? AAAAAAAAAAAA it makes me go crazy I swear. I must be insanely strong to not faint after seeing something so gorgeous. <em>So, thank you for spreading your warm energy everywhere you go.</em>"
+      },
+      {
+        chapter: "Epilogue",
+        title: "Postlude // From me to you, my love",
+        text: "and lastly, <em>thank you for just being you</em>. Every little thing you do holds so much weight for me, I seriously can't put it into words. The way you softly giggle when I say something stupid on call, the way you go MMM 😡 when I ragebait you, the way you get excited when I'm online, or when I call you a cute nickname, the way you fall asleep all the time,"
+      },
+      {
+        chapter: "",
+        title: "",
+        text: "the things you repost about me, the way you talk about me to your friends, the way you get jealous over little things, LIKE. literally. just the way you EXIST is so cute. And how could I not mention all your silly photos?? I love them all so much, sometimes when I miss you I look at the mutache photo like I'm at war. Once again, thank you for being yourself. I love you more than anything else in the world. <br/><em>Happy 8 months, with love and many many kisses, Kiwi :3</em>"
+      }
+    ];
+    
+
+    let spread  = 0;   // spread dem legs open 
+    let flipping = false; // spread is basically the book when its opened and static
+
+    // page stuff, prefix = which page and index = page contents
+    function fillPage(prefix, index) {
+      const p = pages[index] || { chapter: "", title: "", text: "" };
+      document.getElementById(prefix + "-chapter").textContent = p.chapter;
+      document.getElementById(prefix + "-title").textContent   = p.title;
+      document.getElementById(prefix + "-text").innerHTML      = p.text;
+      const numEl = document.getElementById(prefix + "-num");
+      if (numEl) numEl.textContent = (index >= 0 && index < pages.length) ? (index + 1) : "";
+    }
+
+    // render current spread without any animation
+    function render() {
+      const L  = spread * 2 - 1;  // left static page index
+      const R  = spread * 2;      // right static page index (also front face)
+      const N  = spread * 2 + 1;  // next page (back face of flip)
+
+      // left page (empty on the first spread)
+      if (spread === 0) {
+        ["chapter","title","text","num"].forEach(k =>
+          document.getElementById("left-" + k).innerHTML = "");
+      } else {
+        fillPage("left", L);
+      }
+
+      // right static page
+      fillPage("right", R);
+
+      // front face of the flipping page (same content as right static)
+      fillPage("front", R);
+
+      // back face (the next page, revealed after the flip)
+      fillPage("back", N);
+
+      // button states
+      document.getElementById("prev-btn").disabled = (spread === 0);
+      document.getElementById("next-btn").disabled = (R >= pages.length - 1);
+      document.getElementById("flip-page").style.cursor =
+        (R >= pages.length - 1) ? "default" : "pointer";
+    }
+
+    // forward (click button or right page)
+    function flipForward() {
+      const R = spread * 2;
+      if (flipping || R >= pages.length - 1) return;
+
+      flipping = true;
+      const fp = document.getElementById("flip-page");
+      fp.classList.add("flipped");   // css starts
+
+      // after the animation finishes
+      setTimeout(() => {
+        spread++;
+        fp.style.transition = "none";       // turn off transition
+        fp.classList.remove("flipped");     // go back to start position
+        render();                           // load new content
+        // turn on transition for next frame
+        setTimeout(() => { fp.style.transition = ""; flipping = false; }, 50);
+      }, 700);
+    } // setTimeout prevents spamming through pages
+
+    // backward (click left page or back button)
+    function prevPage() {
+      if (flipping || spread === 0) return;
+
+      flipping = true;
+      spread--;          
+      render();
+
+      const fp = document.getElementById("flip-page");
+      fp.style.transition = "none";
+      fp.classList.add("flipped");   // unsure how this exactly works but it just does
+
+      setTimeout(() => {
+        fp.style.transition = "transform 0.7s cubic-bezier(0.645, 0.045, 0.355, 1)";
+        fp.classList.remove("flipped");   // animate back to closed
+        setTimeout(() => { fp.style.transition = ""; flipping = false; }, 750);
+      }, 20);
+    }
+
+    render();
+  </script>
+</body>
+</html>
